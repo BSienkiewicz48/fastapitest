@@ -1,39 +1,34 @@
-from fastapi import FastAPI, HTTPException
-import sqlite3
+from fastapi import FastAPI, Query, Response, HTTPException
+import yfinance as yf
+import matplotlib.pyplot as plt
+import io
 
 app = FastAPI()
 
-def get_connection():
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+@app.get("/stock")
+def get_stock_chart(ticker: str = Query(..., description="Ticker giełdowy, np. AAPL")):
+    try:
+        # Pobierz dane
+        data = yf.download(ticker, period='1y')
+        if data.empty:
+            raise HTTPException(status_code=404, detail="Brak danych dla podanego tickera")
 
-@app.on_event("startup")
-def create_table():
-    conn = get_connection()
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
-    )
-    conn.commit()
-    conn.close()
+        # Tworzenie wykresu
+        plt.figure(figsize=(10, 5))
+        plt.plot(data['Close'], label='Cena zamknięcia')
+        plt.title(f'Cena zamknięcia {ticker.upper()} (ostatni rok)')
+        plt.xlabel('Data')
+        plt.ylabel('Cena (USD)')
+        plt.legend()
+        plt.grid(True)
 
-@app.get("/")
-def root():
-    return {"message": "Hello from FastAPI on Render!"}
+        # Zapis wykresu do bufora jako PNG
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close()
+        buf.seek(0)
 
-@app.get("/users")
-def get_users():
-    conn = get_connection()
-    users = conn.execute("SELECT * FROM users").fetchall()
-    conn.close()
-    return [dict(u) for u in users]
+        return Response(content=buf.read(), media_type="image/png")
 
-@app.post("/users")
-def add_user(name: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO users (name) VALUES (?)", (name,))
-    conn.commit()
-    user_id = cursor.lastrowid
-    conn.close()
-    return {"id": user_id, "name": name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
