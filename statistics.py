@@ -2,8 +2,20 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import JSONResponse
 import yfinance as yf
 import pandas as pd
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # lub podaj konkretną domenę np. ["https://mojastrona.pl"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/stats")
 def get_stock_stats(ticker: str = Query(...)):
