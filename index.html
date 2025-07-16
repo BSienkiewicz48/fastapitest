@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Wykres akcji + Statystyki</title>
+</head>
+<body>
+  <h1>Sprawdź wykres i statystyki spółki</h1>
+
+  <label for="tickerInput">Wpisz ticker firmy (np. AAPL):</label>
+  <input type="text" id="tickerInput" placeholder="AAPL">
+  <button onclick="loadData()">Pobierz dane</button>
+
+  <hr>
+
+  <h2>Wykres:</h2>
+  <img id="chart" src="" alt="Wykres akcji" style="max-width: 100%; border: 1px solid #ccc;" />
+
+  <h2>Statystyki:</h2>
+  <ul>
+    <li>Minimalna cena (3 lata): <span id="minPrice">-</span></li>
+    <li>Maksymalna cena (3 lata): <span id="maxPrice">-</span></li>
+    <li>Aktualna cena: <span id="currentPrice">-</span></li>
+  </ul>
+
+  <script>
+    const chartAPI = "https://fastapitest-kx1r.onrender.com";
+    const statsAPI = "https://statistics-08f0.onrender.com";
+
+    async function loadData() {
+      const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+      if (!ticker) {
+        alert("Podaj ticker!");
+        return;
+      }
+
+      // Zapamiętaj ticker
+      localStorage.setItem("ticker", ticker);
+
+      // Załaduj wykres
+      document.getElementById("chart").src = `${chartAPI}/stock?ticker=${ticker}`;
+
+      // Załaduj statystyki
+      try {
+        const response = await fetch(`${statsAPI}/stats?ticker=${ticker}`);
+        if (!response.ok) {
+          throw new Error(`Błąd API: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
+        document.getElementById("minPrice").textContent = data.min.toFixed(2);
+        document.getElementById("maxPrice").textContent = data.max.toFixed(2);
+        document.getElementById("currentPrice").textContent = data.current.toFixed(2);
+      } catch (err) {
+        console.error("Błąd pobierania statystyk:", err);
+        alert("Błąd podczas pobierania statystyk: " + err.message);
+      }
+    }
+
+    // Automatycznie wczytaj zapamiętany ticker przy starcie
+    window.onload = () => {
+      const saved = localStorage.getItem("ticker");
+      if (saved) {
+        document.getElementById("tickerInput").value = saved;
+        loadData();
+      }
+    }
+  </script>
+</body>
+</html>
