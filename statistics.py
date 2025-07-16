@@ -1,9 +1,7 @@
-from fastapi import Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Query, Response, HTTPException
 import yfinance as yf
-import matplotlib.pyplot as plt
-import io
+import pandas as pd
 
 app = FastAPI()
 
@@ -11,13 +9,21 @@ app = FastAPI()
 def get_stock_stats(ticker: str = Query(...)):
     try:
         data = yf.download(ticker, period='3y')
-        if data.empty:
+
+        if data.empty or "Close" not in data:
             raise HTTPException(status_code=404, detail="Brak danych dla tego tickera")
-        current_price = data["Close"][-1]
+
+        close = data["Close"].dropna()
+
+        if close.empty:
+            raise HTTPException(status_code=404, detail="Brak danych cen zamknięcia")
+
+        current_price = close.iloc[-1]
         return JSONResponse({
-            "min": float(data["Close"].min()),
-            "max": float(data["Close"].max()),
+            "min": float(close.min()),
+            "max": float(close.max()),
             "current": float(current_price)
         })
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Błąd wewnętrzny: {str(e)}")
